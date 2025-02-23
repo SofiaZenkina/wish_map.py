@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from io import BytesIO
-from fpdf import FPDF
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 # Цветовая схема и стили
 BUTTON_COLOR = "#fae7b5"
@@ -119,26 +120,29 @@ else:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-            # Скачивание в формате PDF
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", size=12)
-            pdf.cell(200, 10, txt="Мои желания", ln=True, align='C')
-
-            # Добавление таблицы в PDF
-            col_width = pdf.w / 4
-            row_height = pdf.font_size * 1.5
-            for header in wishes_df.columns:
-                pdf.cell(col_width, row_height, header, border=1, align='C')
-            pdf.ln(row_height)
-
-            for index, row in wishes_df.iterrows():
-                for item in row:
-                    pdf.cell(col_width, row_height, str(item), border=1, align='C')
-                pdf.ln(row_height)
-
+            # Скачивание в формате PDF с использованием reportlab
             pdf_buffer = BytesIO()
-            pdf.output(pdf_buffer)
+            pdf = canvas.Canvas(pdf_buffer, pagesize=letter)
+            pdf.setFont("Helvetica", 12)
+            pdf.drawString(220, 750, "Мои желания")
+
+            # Позиционирование таблицы в PDF
+            x_start, y_start = 50, 720
+            row_height = 20
+            col_widths = [150, 150, 150]
+
+            # Заголовки таблицы
+            for i, header in enumerate(wishes_df.columns):
+                pdf.drawString(x_start + sum(col_widths[:i]), y_start, header)
+
+            # Содержимое таблицы
+            for index, row in wishes_df.iterrows():
+                y_pos = y_start - ((index + 1) * row_height)
+                for i, item in enumerate(row):
+                    pdf.drawString(x_start + sum(col_widths[:i]), y_pos, str(item))
+
+            pdf.showPage()
+            pdf.save()
             pdf_buffer.seek(0)
 
             st.download_button(
@@ -149,4 +153,3 @@ else:
             )
         else:
             st.info("Пока нет добавленных желаний. Добавьте их на вкладке 'Добавить желание'.")
-
