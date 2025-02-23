@@ -1,71 +1,69 @@
+
 import streamlit as st
-import pandas as pd
 from datetime import datetime
-import firebase_admin
-from firebase_admin import credentials, firestore
 
-# Инициализация Firebase (замени 'path_to_your_service_account.json' на путь к твоему файлу с ключом)
-if not firebase_admin._apps:
-    cred = credentials.Certificate('path_to_your_service_account.json')
-    firebase_admin.initialize_app(cred)
+# Добавление пользовательских стилей и надписи сверху
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+st.markdown('<div class="custom-header">ваши цели ближе, чем вам кажется...</div>', unsafe_allow_html=True)
 
-db = firestore.client()
+# Список категорий и месяцев
+categories = ["Внешность", "Отношения", "Здоровье", "Финансы", "Карьера", "Саморазвитие", "Путешествия", "Хобби", "Другое"]
+months = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
 
+# Streamlit интерфейс
+st.title("Карта Желаний")
+st.write("Выберите категорию и месяц для реализации ваших желаний.")
 
-# Авторизация пользователя
-st.title("🔑 Авторизация")
-user_email = st.text_input("Введите ваш email для входа:")
+# Цветовая схема и стили
+BUTTON_COLOR = "#fae7b5"
+HEADER_FONT = "Lletraferida"
+INFO_COLOR = "#d0e6a5"  # Мягкий зеленый для уведомлений
 
-if user_email:
-    user_doc = db.collection('users').document(user_email)
-    user_data = user_doc.get()
+# Выбор категории и месяца
+category = st.selectbox("Выберите категорию желания:", categories)
+month = st.selectbox("Выберите месяц для реализации:", months)
+description = st.text_input("Опишите вашу цель или желание:")
 
-    if not user_data.exists:
-        user_doc.set({"wishes": []})
+# Кнопка для добавления желания
+if st.button("Добавить желание"):
+    if description.strip():
+        st.success(f"Желание добавлено! Категория: {category}, Месяц: {month}, Описание: {description}")
+    else:
+        st.error(" Пожалуйста, введите описание желания.")
 
-    st.success("✅ Успешный вход! Теперь вы можете добавлять и просматривать свои желания.")
+# Отображение текущей даты
+st.write(f"Сегодня: {datetime.now().strftime('%d.%m.%Y')}")
+st.write("---")
+st.write(" Добавьте столько желаний, сколько хотите и начните их реализацию!")
 
-    # Загрузка данных пользователя
-    wishes = user_doc.get().to_dict().get('wishes', [])
+# Вкладка для скачивания таблицы
+with tabs[2]:
+    st.header("Скачать таблицу")
+    if st.session_state['wishes']:
+        wishes_df = pd.DataFrame(st.session_state['wishes'])
 
-    # Список категорий и месяцев
-    categories = ["Внешность", "Отношения", "Здоровье", "Финансы", "Карьера", "Саморазвитие", "Путешествия", "Хобби", "Другое"]
-    months = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+  # Скачивание в формате Word
+        word_buffer = BytesIO()
+        doc = Document()
+        doc.add_heading("Мои желания", level=1)
+        table = doc.add_table(rows=1, cols=len(wishes_df.columns))
+        hdr_cells = table.rows[0].cells
+        for i, column in enumerate(wishes_df.columns):
+            hdr_cells[i].text = column
 
-    # Создание вкладок
-    tabs = st.tabs(["Добавить желание", "Мои желания"])
+        for _, row in wishes_df.iterrows():
+            row_cells = table.add_row().cells
+            for i, item in enumerate(row):
+                row_cells[i].text = str(item)
 
-    # Вкладка для добавления желания
-    with tabs[0]:
-        st.title("🌟 Добавить желание")
-        category = st.selectbox("Выберите категорию желания:", categories)
-        month = st.selectbox("Выберите месяц для реализации:", months)
-        description = st.text_input("Опишите вашу цель или желание:")
+        doc.save(word_buffer)
+        word_buffer.seek(0)
 
-        if st.button("Добавить желание"):
-            if description.strip():
-                new_wish = {
-                    "Желание": description.strip(),
-                    "Категория": category,
-                    "Месяц": month
-                }
-                wishes.append(new_wish)
-                user_doc.update({"wishes": wishes})
-                st.success("✅ Желание успешно добавлено!")
-            else:
-                st.error("⚠️ Пожалуйста, введите описание желания.")
-
-    # Вкладка для просмотра желаний
-    with tabs[1]:
-        st.title("Мои желания")
-        if wishes:
-            wishes_df = pd.DataFrame(wishes)
-            st.dataframe(wishes_df, use_container_width=True)
-
-            # Кнопка для печати (вывод только таблицы без лишнего текста)
-            if st.button("Печать таблицы"):
-                st.write(wishes_df.to_html(index=False), unsafe_allow_html=True)
-        else:
-            st.info("✨ Пока нет добавленных желаний. Добавьте их на вкладке 'Добавить желание'.")
-else:
-    st.info("Введите email для начала работы с картой желаний.")
+        st.download_button(
+            label="Скачать в Word",
+            data=word_buffer,
+            file_name="мои_желания.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+    else:
+        st.info("Пока нет добавленных желаний для скачивания.")
