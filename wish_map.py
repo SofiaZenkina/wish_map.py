@@ -3,10 +3,18 @@ import pandas as pd
 from datetime import datetime
 
 # Цветовая схема
-BACKGROUND_COLOR = "#fae7b5"
-st.markdown(
-    f"<style> .stApp {{ background-color: {BACKGROUND_COLOR}; }} </style>", unsafe_allow_html=True
-)
+BUTTON_COLOR = "#fae7b5"
+CUSTOM_CSS = f"""
+    <style>
+        div.stButton > button {{
+            background-color: {BUTTON_COLOR} !important;
+            color: black !important;
+            border-radius: 5px;
+            border: none;
+        }}
+    </style>
+"""
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 # Инициализация состояния сессии для хранения желаний
 if 'wishes' not in st.session_state:
@@ -15,17 +23,17 @@ if 'user_email' not in st.session_state:
     st.session_state['user_email'] = None
 
 # Авторизация пользователя
-st.title("🔑 Авторизация")
-user_email = st.text_input("Введите ваш email для входа:", value=st.session_state['user_email'] or "")
-
-if st.button("Войти"):
-    if user_email.strip():
-        st.session_state['user_email'] = user_email.strip()
-        st.success("✅ Успешный вход! Теперь вы можете добавлять и просматривать свои желания.")
-    else:
-        st.error("⚠️ Пожалуйста, введите корректный email.")
-
-if st.session_state['user_email']:
+if not st.session_state['user_email']:
+    st.title("🔑 Авторизация")
+    user_email = st.text_input("Введите ваш email для входа:")
+    if st.button("Войти"):
+        if user_email.strip():
+            st.session_state['user_email'] = user_email.strip()
+            st.success("✅ Успешный вход! Теперь вы можете добавлять и просматривать свои желания.")
+            st.rerun()
+        else:
+            st.error("⚠️ Пожалуйста, введите корректный email.")
+else:
     # Список категорий и месяцев
     categories = ["Внешность", "Отношения", "Здоровье", "Финансы", "Карьера", "Саморазвитие", "Путешествия", "Хобби", "Другое"]
     months = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
@@ -59,13 +67,22 @@ if st.session_state['user_email']:
             wishes_df = pd.DataFrame(st.session_state['wishes'])
             st.dataframe(wishes_df, use_container_width=True)
 
-            # Кнопка для печати (вывод только таблицы без лишнего текста)
+            # Кнопка для печати (выводит всплывающее окно с принтером для печати таблицы)
             if st.button("Печать таблицы"):
-                st.write(wishes_df.to_html(index=False), unsafe_allow_html=True)
+                st.markdown(
+                    f"""
+                    <script>
+                        const printWindow = window.open('', '', 'height=600,width=800');
+                        printWindow.document.write('<html><head><title>Печать таблицы</title></head><body>');
+                        printWindow.document.write(`{wishes_df.to_html(index=False)}`);
+                        printWindow.document.write('</body></html>');
+                        printWindow.document.close();
+                        printWindow.print();
+                    </script>
+                    """,
+                    unsafe_allow_html=True
+                )
         else:
             st.info("✨ Пока нет добавленных желаний. Добавьте их на вкладке 'Добавить желание'.")
-else:
-    st.info("Введите email для начала работы с картой желаний.")
-
 
 
