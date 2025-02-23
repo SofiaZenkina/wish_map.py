@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from io import BytesIO
+from fpdf import FPDF
 
 # Цветовая схема и стили
 BUTTON_COLOR = "#fae7b5"
@@ -20,20 +21,28 @@ CUSTOM_CSS = f"""
             color: black !important;
         }}
 
+        /* Удаление цвета при нажатии на кнопки */
+        div.stButton > button {{
+            background-color: transparent !important;
+            color: black !important;
+            border: 1px solid {BUTTON_COLOR};
+            border-radius: 5px;
+        }}
+
         /* Заголовки */
         h1, h2, h3, h4, h5, h6 {{
             font-family: '{HEADER_FONT}', sans-serif;
         }}
 
-        /* Надпись справа сверху */
+        /* Надпись слева сверху */
         .custom-header {{
             position: absolute;
             top: 10px;
-            right: 20px;
+            left: 20px;
             font-family: '{HEADER_FONT}', sans-serif;
             font-style: italic;
             font-size: 16px;
-            color: black;
+            color: {BUTTON_COLOR};
         }}
     </style>
 """
@@ -100,7 +109,8 @@ else:
 
             # Скачивание в формате Excel
             excel_buffer = BytesIO()
-            wishes_df.to_excel(excel_buffer, index=False)
+            with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+                wishes_df.to_excel(writer, index=False, sheet_name="Желания")
             excel_buffer.seek(0)
             st.download_button(
                 label="Скачать таблицу в Excel",
@@ -110,11 +120,27 @@ else:
             )
 
             # Скачивание в формате PDF
-            import pdfkit
-            html_content = wishes_df.to_html(index=False)
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            pdf.cell(200, 10, txt="Мои желания", ln=True, align='C')
+
+            # Добавление таблицы в PDF
+            col_width = pdf.w / 4
+            row_height = pdf.font_size * 1.5
+            for header in wishes_df.columns:
+                pdf.cell(col_width, row_height, header, border=1, align='C')
+            pdf.ln(row_height)
+
+            for index, row in wishes_df.iterrows():
+                for item in row:
+                    pdf.cell(col_width, row_height, str(item), border=1, align='C')
+                pdf.ln(row_height)
+
             pdf_buffer = BytesIO()
-            pdfkit.from_string(html_content, pdf_buffer)
+            pdf.output(pdf_buffer)
             pdf_buffer.seek(0)
+
             st.download_button(
                 label="Скачать таблицу в PDF",
                 data=pdf_buffer,
@@ -123,3 +149,4 @@ else:
             )
         else:
             st.info("Пока нет добавленных желаний. Добавьте их на вкладке 'Добавить желание'.")
+
